@@ -1,25 +1,18 @@
 package com.baitan.balancing_strategy;
 
-import java.util.concurrent.ConcurrentMap;
+import com.baitan.server.Server;
 
-public abstract class BalancingStrategy {
+public interface BalancingStrategy {
 
-    protected ConcurrentMap<Integer, String> servers;
+    void addServer(Server server);
 
-    public BalancingStrategy(ConcurrentMap<Integer, String> servers) {
+    void removeServer(Server server);
 
-    }
+    void removeServer(String host);
 
-    public abstract String selectServer();
+    void clearServers();
 
-    public abstract void addServer(String server);
+    int getServerCount();
 
-    public abstract void removeServer(String server);
-
-    public abstract void clearServers();
-
-    public abstract int getServerCount();
-
-    public abstract void routeRequest(String request);
-
+    Server getNextServer();
 }

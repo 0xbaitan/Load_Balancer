@@ -6,32 +6,32 @@ export NUM_LOAD_BALANCERS=1
 
 buildDockerComposeDev() {
   echo "Building Docker Compose for development..."
-  docker-compose -f docker-compose.dev.yaml build
+  docker-compose -f docker-compose.dev.yaml -p load-balancer build
 }
 
 buildDockerComposeProd() {
   echo "Building Docker Compose for production..."
-  docker-compose -f docker-compose.prod.yaml build
+  docker-compose -f docker-compose.prod.yaml --no-cache -p load-balancer build
 }
 
 runDockerComposeDev() {
   echo "Running Docker Compose for development..."
-  docker-compose -f docker-compose.dev.yaml up --scale backend=$NUM_SERVERS --scale load_balancer=$NUM_LOAD_BALANCERS -d
+  docker-compose -f docker-compose.dev.yaml -p load-balancer up --scale backend=$NUM_SERVERS --scale load_balancer=$NUM_LOAD_BALANCERS -d
 }
 
 runDockerComposeProd() {
   echo "Running Docker Compose for production..."
-  docker-compose -f docker-compose.prod.yaml up --scale backend=$NUM_SERVERS --scale load_balancer=$NUM_LOAD_BALANCERS -d
+  docker-compose -f docker-compose.prod.yaml -p load-balancer up --scale backend=$NUM_SERVERS --scale load_balancer=$NUM_LOAD_BALANCERS -d
 }
 
 stopDockerComposeDev() {
     echo "Stopping Docker Compose for development..."
-    docker-compose -f docker-compose.dev.yaml down
+    docker-compose -f docker-compose.dev.yaml -p load-balancer down
     }
 
 stopDockerComposeProd() {
     echo "Stopping Docker Compose for production..."
-    docker-compose -f docker-compose.prod.yaml down
+    docker-compose -f docker-compose.prod.yaml -p load-balancer down
 }
 
 help() {

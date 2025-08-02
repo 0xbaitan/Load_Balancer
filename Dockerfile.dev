@@ -20,14 +20,14 @@ RUN mvn dependency:go-offline
 COPY balancer/src ./src
 COPY balancer/watch.sh .
 RUN chmod +x watch.sh
-RUN mvn package -e -DskipTests
+RUN mvn clean package -e -DskipTests
 
 # Stage 4: Run the load balancer
 FROM balancer-build AS balancer-run
 WORKDIR /app/balancer
 COPY --from=balancer-build /app/balancer/target/balancer-1.0-SNAPSHOT.jar ./balancer.jar
 EXPOSE 8080
-CMD ["./watch.sh"]
+CMD ["java", "-jar", "balancer.jar"]
 
 
 # Stage 5: Ensure JMeter is available for load testing

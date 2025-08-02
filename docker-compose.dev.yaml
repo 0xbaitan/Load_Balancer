@@ -23,6 +23,8 @@ services:
       - load_balancer_network
     depends_on:
       - backend
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
 
 networks:
   load_balancer_network:
