@@ -41,4 +41,15 @@ public class RoundRobinStrategy extends BalancingStrategy {
     public int getServerCount() {
         return servers.size();
     }
+
+    @Override
+    public void routeRequest(String request) {
+        String server = selectServer();
+        if (server != null) {
+            // Logic to route the request to the selected server
+            System.out.println("Routing request to server: " + server);
+        } else {
+            System.out.println("No servers available to route the request.");
+        }
+    }
 }

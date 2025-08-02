@@ -20,4 +20,6 @@ public abstract class BalancingStrategy {
 
     public abstract int getServerCount();
 
+    public abstract void routeRequest(String request);
+
 }

@@ -28,3 +28,9 @@ EXPOSE 8080
 CMD ["java", "-jar", "balancer.jar"]
 
 
+# Stage 5: Ensure JMeter is available for load testing
+FROM jmeter:5.4.1 AS jmeter
+WORKDIR /app/jmeter
+COPY jmeter/test_plan.jmx ./test_plan.jmx
+COPY jmeter/user.properties ./user.properties
+
