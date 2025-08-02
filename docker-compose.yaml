@@ -1,0 +1,27 @@
+services:
+  backend:
+    build:
+      context: .
+      target: server-run
+      dockerfile: Dockerfile
+    ports:
+      - "3000-3010:3000"
+    restart: unless-stopped
+    networks:
+      - load_balancer_network
+
+  load_balancer:
+    container_name: load_balancer
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: balancer-run
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    networks:
+      - load_balancer_network
+
+networks:
+  load_balancer_network:
+    driver: bridge

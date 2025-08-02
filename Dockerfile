@@ -1,0 +1,30 @@
+# Stage 1: Build the backend Javascript server
+FROM node:18 AS server-build
+WORKDIR /app/server
+COPY server/package*.json ./
+RUN npm install
+COPY server/ .
+
+# Stage 2: Run the backend server
+FROM server-build AS server-run
+WORKDIR /app/server
+COPY --from=server-build /app/server/ .
+EXPOSE 3000
+CMD ["node", "index.js"]
+
+# Stage 3: Build the load balancer
+FROM maven:3.9.6-eclipse-temurin-21 AS balancer-build
+WORKDIR /app/balancer
+COPY balancer/pom.xml .
+RUN mvn dependency:go-offline
+COPY balancer/src ./src
+RUN mvn package -e -DskipTests
+
+# Stage 4: Run the load balancer
+FROM balancer-build AS balancer-run
+WORKDIR /app/balancer
+COPY --from=balancer-build /app/balancer/target/balancer-1.0-SNAPSHOT.jar ./balancer.jar
+EXPOSE 8080
+CMD ["java", "-jar", "balancer.jar"]
+
+
