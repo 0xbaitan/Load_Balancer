@@ -1,10 +1,9 @@
 package com.baitan.server;
 
-import java.lang.reflect.Proxy;
 import java.net.InetSocketAddress;
 
-import com.baitan.balancing_strategy.BalancingStrategy;
-import com.baitan.balancing_strategy.RoundRobinStrategy;
+import com.baitan.balancing.BalancingStrategy;
+import com.baitan.balancing.ConcurrentRoundRobinStrategy;
 import com.baitan.server.handlers.ProxyHandler;
 import com.sun.net.httpserver.HttpServer;
 
@@ -16,7 +15,7 @@ public class LoadBalancer {
     private HttpServer loadBalancerServer;
 
     private LoadBalancer() {
-        this.balancingStrategy = new RoundRobinStrategy();
+        this.balancingStrategy = ConcurrentRoundRobinStrategy.getInstance();
         this.healthChecker = HealthChecker.getInstance();
         Server[] healthyServers = healthChecker.getHealthyServers();
         for (Server server : healthyServers) {

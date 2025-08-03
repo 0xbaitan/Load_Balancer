@@ -1,4 +1,4 @@
-package com.baitan.balancing_strategy;
+package com.baitan.balancing;
 
 import com.baitan.server.Server;
 

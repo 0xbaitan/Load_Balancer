@@ -1,14 +1,13 @@
 package com.baitan.server.handlers;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.util.List;
 
-import com.baitan.balancing_strategy.BalancingStrategy;
-import com.baitan.server.LoadBalancer;
+import com.baitan.balancing.BalancingStrategy;
+import com.baitan.server.ConcurrentLoadBalancer;
 import com.baitan.server.Server;
 import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
@@ -16,23 +15,30 @@ import com.sun.net.httpserver.HttpHandler;
 
 public class ProxyHandler implements HttpHandler {
 
-    private static ProxyHandler instance;
-    private HttpClient httpClient;
+    private static volatile ProxyHandler instance;
+    private final HttpClient httpClient;
 
     private ProxyHandler() {
         this.httpClient = HttpClient.newHttpClient();
     }
 
-    public static synchronized ProxyHandler getInstance() {
-        if (instance == null) {
-            instance = new ProxyHandler();
+    public static ProxyHandler getInstance() {
+        ProxyHandler localInstance = ProxyHandler.instance;
+        if (localInstance == null) {
+            synchronized (ProxyHandler.class) {
+                localInstance = ProxyHandler.instance;
+                if (localInstance == null) {
+                    ProxyHandler.instance = localInstance = new ProxyHandler();
+                }
+            }
         }
-        return instance;
+        return localInstance;
     }
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
-        BalancingStrategy strategy = LoadBalancer.getInstance().getBalancingStrategy();
+        System.out.println("Using thread:" + Thread.currentThread().getName());
+        BalancingStrategy strategy = ConcurrentLoadBalancer.getInstance().getBalancingStrategy();
         Server currentBackend = strategy.getNextServer();
 
         if (currentBackend == null) {
@@ -62,14 +68,9 @@ public class ProxyHandler implements HttpHandler {
                 }
             });
 
-            exchange.sendResponseHeaders(response.statusCode(), response.body().available());
-            try (InputStream responseBody = response.body()) {
-                byte[] buffer = new byte[1024];
-                int bytesRead;
-                while ((bytesRead = responseBody.read(buffer)) != -1) {
-                    exchange.getResponseBody().write(buffer, 0, bytesRead);
-                }
-            }
+            byte[] responseBytes = response.body().readAllBytes();
+            exchange.sendResponseHeaders(response.statusCode(), responseBytes.length);
+            exchange.getResponseBody().write(responseBytes);
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
             String errorResponse = "Error processing request: " + e.getMessage();

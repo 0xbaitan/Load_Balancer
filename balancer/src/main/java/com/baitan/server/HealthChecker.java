@@ -9,23 +9,28 @@ import com.github.dockerjava.core.DockerClientBuilder;
 
 public class HealthChecker {
 
-    private static HealthChecker instance;
+    private static volatile HealthChecker instance;
     private DockerClient dockerClient;
 
     private HealthChecker() {
         this.dockerClient = DockerClientBuilder.getInstance().build();
     }
 
-    public static synchronized HealthChecker getInstance() {
-        if (instance == null) {
-            instance = new HealthChecker();
+    public static HealthChecker getInstance() {
+        HealthChecker localInstance = instance;
+        if (localInstance == null) {
+            synchronized (HealthChecker.class) {
+                localInstance = instance;
+                if (localInstance == null) {
+                    instance = localInstance = new HealthChecker();
+                }
+            }
         }
-        return instance;
+        return localInstance;
     }
 
     public Server[] getHealthyServers() {
         return dockerClient.listContainersCmd().withStatusFilter(Arrays.asList("running"))
-
                 .exec().stream().filter(container -> !Arrays.asList(container.getNames()).contains(("/load_balancer")))
                 .map(container -> new Server(container.getNames()[0].replace("/", ""),
                         container.getPorts()[0].getPublicPort()))
