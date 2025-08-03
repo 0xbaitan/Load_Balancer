@@ -8,11 +8,16 @@ public interface BalancingStrategy {
 
     void removeServer(Server server);
 
-    void removeServer(String host);
-
     void clearServers();
 
     int getServerCount();
 
     Server getNextServer();
+
+    boolean containsServer(Server server);
+
+    Server[] getServers();
+
+    void manageListOfServers(Server[] healthyServers);
+    
 }

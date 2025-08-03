@@ -12,7 +12,7 @@ public class ConcurrentLoadBalancer {
 
     private static volatile ConcurrentLoadBalancer instance;
     private BalancingStrategy balancingStrategy;
-    private HealthChecker healthChecker;
+    private final HealthChecker healthChecker;
 
     private ConcurrentLoadBalancer() {
         this.balancingStrategy = ConcurrentRoundRobinStrategy.getInstance();
@@ -42,8 +42,18 @@ public class ConcurrentLoadBalancer {
         this.balancingStrategy = strategy;
     }
 
+    private void runHealthCheck() {
+        try {
+            HealthCheckThread healthCheckThread = new HealthCheckThread(healthChecker, balancingStrategy);
+            healthCheckThread.start();
+        } catch (Exception e) {
+            System.err.println("Failed to start health check thread: " + e.getMessage());
+        }
+
+    }
+
     public void start() {
-        Server[] healthyServers = healthChecker.getHealthyServers();
+        Server[] healthyServers = healthChecker.getRunningContainers();
         for (Server server : healthyServers) {
             balancingStrategy.addServer(server);
         }
@@ -63,6 +73,8 @@ public class ConcurrentLoadBalancer {
         loadBalancerServer.createContext("/", ProxyHandler.getInstance());
 
         loadBalancerServer.setExecutor(Executors.newFixedThreadPool(10)); // sets a custom executor
+
+        runHealthCheck();
 
         loadBalancerServer.start();
     }

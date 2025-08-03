@@ -1,5 +1,6 @@
 package com.baitan.balancing;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -61,24 +62,6 @@ public class ConcurrentRoundRobinStrategy implements BalancingStrategy {
     }
 
     @Override
-    public void removeServer(String host) {
-        lock.lock();
-        try {
-            for (int i = 0; i < servers.size(); i++) {
-                Server s = servers.get(i);
-                if (s.getHost().equals(host)) {
-                    servers.remove(i);
-                    System.out.println("Removed server: " + s + " at index: " + i);
-                    return;
-                }
-            }
-            System.err.println("Server with host " + host + " not found.");
-        } finally {
-            lock.unlock();
-        }
-    }
-
-    @Override
     public void removeServer(Server server) {
         lock.lock();
         try {
@@ -124,4 +107,41 @@ public class ConcurrentRoundRobinStrategy implements BalancingStrategy {
         return servers.size();
     }
 
+    @Override
+    public boolean containsServer(Server server) {
+        if (Server.isInvalid(server)) {
+            return false;
+        }
+        return servers.stream().anyMatch(s -> s.getHost().equals(server.getHost()) && s.getPort() == server.getPort());
+    }
+
+    @Override
+    public Server[] getServers() {
+        return servers.stream().toArray(Server[]::new);
+    }
+
+    @Override
+    public void manageListOfServers(Server[] healthyServers) {
+        lock.lock();
+        try {
+            if (healthyServers == null || healthyServers.length == 0) {
+                clearServers();
+                return;
+            }
+
+            for (Server server : healthyServers) {
+                if (!containsServer(server)) {
+                    addServer(server);
+                }
+            }
+
+            // Remove servers that are not in the healthy list
+            var removed = servers.removeIf(server -> Arrays.stream(healthyServers)
+                    .noneMatch(s -> s.getHost().equals(server.getHost()) && s.getPort() == server.getPort()));
+
+            System.out.println("Removed " + (removed ? "some" : "no") + " servers that are not healthy.");
+        } finally {
+            lock.unlock();
+        }
+    }
 }

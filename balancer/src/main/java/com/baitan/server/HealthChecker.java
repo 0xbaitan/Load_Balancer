@@ -29,18 +29,34 @@ public class HealthChecker {
         return localInstance;
     }
 
-    public Server[] getHealthyServers() {
+
+    public Server[] getRunningContainers() {
         return dockerClient.listContainersCmd().withStatusFilter(Arrays.asList("running"))
                 .exec().stream().filter(container -> !Arrays.asList(container.getNames()).contains(("/load_balancer")))
                 .map(container -> new Server(container.getNames()[0].replace("/", ""),
-                        container.getPorts()[0].getPublicPort()))
+                        3000))
                 .toArray(Server[]::new);
+    }
+
+    public Server[] getExitedContainers() {
+        return dockerClient.listContainersCmd().withStatusFilter(Arrays.asList("exited"))
+                .exec().stream().filter(container -> !Arrays.asList(container.getNames()).contains(("/load_balancer")))
+                .map(container -> new Server(container.getNames()[0].replace("/", ""),
+                        3000))
+                .toArray(Server[]::new);
+    }
+
+    public Server[] getHealthyServers() {
+        var healthyContainers = getRunningContainers();
+        return Arrays.stream(healthyContainers).map(server -> server.isHealthy() ? server : null)
+                .filter(server -> server != null).toArray(Server[]::new);
     }
 
     public String[] getHealthyContainers() {
         return dockerClient.listContainersCmd().withStatusFilter(Arrays.asList("running")).exec().stream()
                 .map(Container::getNames).flatMap(names -> java.util.Arrays.stream(names)).toArray(String[]::new);
     }
+
 
     public void close() throws IOException {
         dockerClient.close();
