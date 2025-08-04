@@ -3,7 +3,7 @@ services:
     build:
       context: .
       target: server-run
-      dockerfile: Dockerfile.prod
+      dockerfile: Dockerfile
     ports:
       - "3000-3010:3000"
     restart: unless-stopped
@@ -14,13 +14,17 @@ services:
     container_name: load_balancer
     build:
       context: .
-      dockerfile: Dockerfile.prod
+      dockerfile: Dockerfile
       target: balancer-run
     ports:
       - "8080:8080"
     restart: unless-stopped
     networks:
       - load_balancer_network
+    depends_on:
+      - backend
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
 
 networks:
   load_balancer_network:
