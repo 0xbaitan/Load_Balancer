@@ -1,21 +1,23 @@
-package com.baitan.balancing;
+package com.baitan.balancer.strategy;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.stream.Collectors;
 
-import com.baitan.server.Server;
+import com.baitan.balancer.Service;
 
 public class ConcurrentRoundRobinStrategy implements BalancingStrategy {
 
     private static volatile ConcurrentRoundRobinStrategy instance;
 
-    private AtomicInteger currentIndex;
+    private final AtomicInteger currentIndex;
     private final Lock lock;
-    private final List<Server> servers;
+    private final List<Service> servers;
 
     private ConcurrentRoundRobinStrategy() {
         this.servers = new CopyOnWriteArrayList<>();
@@ -36,15 +38,15 @@ public class ConcurrentRoundRobinStrategy implements BalancingStrategy {
         return instance;
     }
 
-    public boolean isServerPresent(Server server) {
+    public boolean isServerPresent(Service server) {
         return servers.stream().anyMatch(s -> s.getHost().equals(server.getHost()) && s.getPort() == server.getPort());
     }
 
     @Override
-    public void addServer(Server server) {
+    public void addServer(Service server) {
         lock.lock();
         try {
-            if (Server.isInvalid(server)) {
+            if (Service.isInvalid(server)) {
                 System.err.println("Invalid server: " + server);
                 return;
             }
@@ -62,10 +64,10 @@ public class ConcurrentRoundRobinStrategy implements BalancingStrategy {
     }
 
     @Override
-    public void removeServer(Server server) {
+    public void removeServer(Service server) {
         lock.lock();
         try {
-            if (Server.isInvalid(server)) {
+            if (Service.isInvalid(server)) {
                 System.err.println("Invalid server: " + server);
                 return;
             }
@@ -82,13 +84,16 @@ public class ConcurrentRoundRobinStrategy implements BalancingStrategy {
     }
 
     @Override
-    public Server getNextServer() {
+    public Service getNextServer() {
         if (servers.isEmpty()) {
             System.out.println("No servers available.");
             return null;
         }
-        int index = currentIndex.getAndUpdate(i -> (i + 1) % servers.size());
-        return servers.get(index);
+        int size = servers.size();
+        int index = currentIndex.getAndUpdate(i -> (i + 1) % size) % size;
+        var server = servers.get(index);
+        System.out.println("Next server: " + server + " at index: " + index);
+        return server;
     }
 
     @Override
@@ -96,7 +101,7 @@ public class ConcurrentRoundRobinStrategy implements BalancingStrategy {
         lock.lock();
         try {
             servers.clear();
-            currentIndex = new AtomicInteger();
+            currentIndex.set(0);
         } finally {
             lock.unlock();
         }
@@ -108,20 +113,20 @@ public class ConcurrentRoundRobinStrategy implements BalancingStrategy {
     }
 
     @Override
-    public boolean containsServer(Server server) {
-        if (Server.isInvalid(server)) {
+    public boolean containsServer(Service server) {
+        if (Service.isInvalid(server)) {
             return false;
         }
         return servers.stream().anyMatch(s -> s.getHost().equals(server.getHost()) && s.getPort() == server.getPort());
     }
 
     @Override
-    public Server[] getServers() {
-        return servers.stream().toArray(Server[]::new);
+    public Service[] getServers() {
+        return servers.stream().toArray(Service[]::new);
     }
 
     @Override
-    public void manageListOfServers(Server[] healthyServers) {
+    public void synchronizeWithHealthyServers(Service[] healthyServers) {
         lock.lock();
         try {
             if (healthyServers == null || healthyServers.length == 0) {
@@ -129,15 +134,17 @@ public class ConcurrentRoundRobinStrategy implements BalancingStrategy {
                 return;
             }
 
-            for (Server server : healthyServers) {
+            for (Service server : healthyServers) {
                 if (!containsServer(server)) {
                     addServer(server);
+
                 }
             }
 
+            Set<Service> healthySet = Arrays.stream(healthyServers).collect(Collectors.toSet());
+
             // Remove servers that are not in the healthy list
-            var removed = servers.removeIf(server -> Arrays.stream(healthyServers)
-                    .noneMatch(s -> s.getHost().equals(server.getHost()) && s.getPort() == server.getPort()));
+            var removed = servers.removeIf(server -> !healthySet.contains(server));
 
             System.out.println("Removed " + (removed ? "some" : "no") + " servers that are not healthy.");
         } finally {

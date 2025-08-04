@@ -1,11 +1,15 @@
-package com.baitan.server;
+package com.baitan.balancer;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import com.baitan.balancing.BalancingStrategy;
-import com.baitan.balancing.ConcurrentRoundRobinStrategy;
-import com.baitan.server.handlers.ProxyHandler;
+import com.baitan.balancer.handlers.ProxyHandler;
+import com.baitan.balancer.health.HealthCheckThread;
+import com.baitan.balancer.health.HealthChecker;
+import com.baitan.balancer.strategy.BalancingStrategy;
+import com.baitan.balancer.strategy.ConcurrentRoundRobinStrategy;
 import com.sun.net.httpserver.HttpServer;
 
 public class ConcurrentLoadBalancer {
@@ -13,6 +17,8 @@ public class ConcurrentLoadBalancer {
     private static volatile ConcurrentLoadBalancer instance;
     private BalancingStrategy balancingStrategy;
     private final HealthChecker healthChecker;
+    private final int NUM_THREADS = Runtime.getRuntime().availableProcessors();
+    private static final int DEFAULT_PORT = 8080;
 
     private ConcurrentLoadBalancer() {
         this.balancingStrategy = ConcurrentRoundRobinStrategy.getInstance();
@@ -52,30 +58,32 @@ public class ConcurrentLoadBalancer {
 
     }
 
-    public void start() {
-        Server[] healthyServers = healthChecker.getRunningContainers();
-        for (Server server : healthyServers) {
+    private void initializeServers() {
+        Service[] healthyServers = healthChecker.getHealthyServers();
+        for (Service server : healthyServers) {
             balancingStrategy.addServer(server);
         }
+    }
 
-        HttpServer loadBalancerServer = null;
+    private void initializeLoadBalancerServer() {
         try {
-
-            loadBalancerServer = HttpServer.create(new InetSocketAddress(8080), 0);
-        } catch (Exception e) {
-            e.printStackTrace();
+            HttpServer loadBalancerServer = HttpServer.create(new InetSocketAddress(DEFAULT_PORT), 0);
+            loadBalancerServer.createContext("/", ProxyHandler.getInstance());
+            ExecutorService executor = Executors.newFixedThreadPool(NUM_THREADS);
+            loadBalancerServer.setExecutor(executor);
+            loadBalancerServer.start();
+            System.out.println("Load Balancer started on port" + DEFAULT_PORT);
+        } catch (IOException e) {
+            System.err.println("Failed to create HTTP server: " + e.getMessage());
         }
+    }
 
-        if (loadBalancerServer == null) {
-            throw new RuntimeException("Failed to create HTTP server");
-        }
-
-        loadBalancerServer.createContext("/", ProxyHandler.getInstance());
-
-        loadBalancerServer.setExecutor(Executors.newFixedThreadPool(10)); // sets a custom executor
+    public void start() {
+        initializeServers();
 
         runHealthCheck();
 
-        loadBalancerServer.start();
+        initializeLoadBalancerServer();
+
     }
 }

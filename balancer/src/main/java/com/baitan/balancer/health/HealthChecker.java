@@ -1,8 +1,9 @@
-package com.baitan.server;
+package com.baitan.balancer.health;
 
 import java.io.IOException;
 import java.util.Arrays;
 
+import com.baitan.balancer.Service;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.model.Container;
 import com.github.dockerjava.core.DockerClientBuilder;
@@ -29,34 +30,28 @@ public class HealthChecker {
         return localInstance;
     }
 
-
-    public Server[] getRunningContainers() {
-        return dockerClient.listContainersCmd().withStatusFilter(Arrays.asList("running"))
-                .exec().stream().filter(container -> !Arrays.asList(container.getNames()).contains(("/load_balancer")))
-                .map(container -> new Server(container.getNames()[0].replace("/", ""),
-                        3000))
-                .toArray(Server[]::new);
+    public Service[] getRunningContainers() {
+        return dockerClient.listContainersCmd().withStatusFilter(Arrays.asList("running")).exec().stream()
+                .filter(container -> !Arrays.asList(container.getNames()).contains(("/load_balancer")))
+                .map(container -> new Service(container.getNames()[0].replace("/", ""), 3000)).toArray(Service[]::new);
     }
 
-    public Server[] getExitedContainers() {
-        return dockerClient.listContainersCmd().withStatusFilter(Arrays.asList("exited"))
-                .exec().stream().filter(container -> !Arrays.asList(container.getNames()).contains(("/load_balancer")))
-                .map(container -> new Server(container.getNames()[0].replace("/", ""),
-                        3000))
-                .toArray(Server[]::new);
+    public Service[] getExitedContainers() {
+        return dockerClient.listContainersCmd().withStatusFilter(Arrays.asList("exited")).exec().stream()
+                .filter(container -> !Arrays.asList(container.getNames()).contains(("/load_balancer")))
+                .map(container -> new Service(container.getNames()[0].replace("/", ""), 3000)).toArray(Service[]::new);
     }
 
-    public Server[] getHealthyServers() {
+    public Service[] getHealthyServers() {
         var healthyContainers = getRunningContainers();
         return Arrays.stream(healthyContainers).map(server -> server.isHealthy() ? server : null)
-                .filter(server -> server != null).toArray(Server[]::new);
+                .filter(server -> server != null).toArray(Service[]::new);
     }
 
     public String[] getHealthyContainers() {
         return dockerClient.listContainersCmd().withStatusFilter(Arrays.asList("running")).exec().stream()
                 .map(Container::getNames).flatMap(names -> java.util.Arrays.stream(names)).toArray(String[]::new);
     }
-
 
     public void close() throws IOException {
         dockerClient.close();
