@@ -110,12 +110,11 @@ public class ConcurrentRoundRobinStrategy implements BalancingStrategy {
                 return;
             }
             int index = services.indexOf(service);
-            if (index != -1) {
-                services.remove(index);
-                System.out.println("Removed service: " + service + " at index: " + index);
-            } else {
+            if (index == -1) {
                 System.out.println("Service not found: " + service);
+                return;
             }
+            services.remove(index);
         } finally {
             lock.unlock();
         }
@@ -242,8 +241,21 @@ public class ConcurrentRoundRobinStrategy implements BalancingStrategy {
 
             Set<Service> healthySet = Arrays.stream(healthyServices).collect(Collectors.toSet());
 
+            var unhealthyServices = services.stream().filter(s -> !healthySet.contains(s)).collect(Collectors.toList());
+
+            var indicesOfUnhealthyServices = unhealthyServices.stream().map(services::indexOf)
+                    .collect(Collectors.toList());
+
+            var numRemoveIndicesBeforeCurrentIndex = indicesOfUnhealthyServices.stream()
+                    .filter(index -> index < currentIndex.get()).count();
+
             // Remove services that are not in the healthy list
             var removed = services.removeIf(s -> !healthySet.contains(s));
+
+            // Update the current index to account for removed services
+            if (numRemoveIndicesBeforeCurrentIndex > 0) {
+                currentIndex.addAndGet(-(int) numRemoveIndicesBeforeCurrentIndex);
+            }
 
             System.out.println("Removed " + (removed ? "some" : "no") + " services that are not healthy.");
         } finally {

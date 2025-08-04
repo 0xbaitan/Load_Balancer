@@ -25,7 +25,7 @@ public class HealthCheckThread extends Thread {
 
     private final HealthChecker healthChecker;
     private final BalancingStrategy balancingStrategy;
-    private static final int HEALTH_CHECK_INTERVAL = 60 * 1000; // 60 seconds
+    private static final int HEALTH_CHECK_INTERVAL = 1000 * 60; // 1 minute in milliseconds
 
     /**
      * Constructor for HealthCheckThread.
