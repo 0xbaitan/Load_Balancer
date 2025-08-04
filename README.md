@@ -93,11 +93,12 @@ An naive way of checking the Round Robin work is by accessing the load balancer 
 - Only Docker containers exposing a `/health` endpoint that returns HTTP 200 are considered healthy and eligible for routing.
 - The load balancer container must be named `/load_balancer` to ensure it is excluded from backend server routing.
 - The Round Robin strategy implemented is fully thread-safe and suitable for concurrent, multi-threaded environments.
-- Potential future improvements include:
+- **Potential future improvements include**:
   - Implementing a dynamic load balancing algorithm to optimize traffic distribution based on real-time metrics.
   - Adding security measures such as throttling to mitigate cyber threats, especially Distributed Denial of Service (DDoS) attacks.
   - Enhancing logging to provide more detailed request tracking and diagnostics.
   - Introducing auto-scaling capabilities for the load balancer container to prevent it from becoming a single point of failure.
+  - `JUnit` tests could be added with a more test driven approach as the codebase grows and becomes more complex.
 
 ## License
 
