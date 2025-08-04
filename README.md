@@ -43,7 +43,7 @@ The architecture can be pictured in the following diagram:
 - Uses Docker Java API (via Maven) to detect containers.
 - Regularly polls backend `/health` endpoints.
 - Backends return HTTP 200 are healthy; else are marked unhealthy.
-- Simulates failure with a 5% chance of returning HTTP 500.
+- Simulates failure with a 5% chance of returning HTTP 500. See [`service/index.js`](service/index.js).
 - Immediately updates backend list for load balancing.
 - Adjusts round robin index to avoid service skipping on removal.
 
